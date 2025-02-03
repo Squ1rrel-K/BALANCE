@@ -22,8 +22,8 @@ class DefaultAttack(Attack):
 class ReversalGradient(Attack):
 
     def gen_gradient(self, context: dict):
-        c_d, model, optim, lr, loss_fun, model_state, device = (context['client'], context['model'], context['optim'],
-                                                                context['lr'], context['loss_fun'],
+        c_d, model, optim, lr, loss_fun, model_state, device = (context['c_d'], context['model'], context['optim'],
+                                                                context['lr'], context['loss_func'],
                                                                 context['model_state'],
                                                                 context['device'])
         client_update, sum_loss, true_predict, size = train_client(c_d, model, optim, lr, loss_fun,
@@ -204,3 +204,36 @@ class Sine(Attack):
         perturbation = torch.randn(self.m.size()).to(self.device)
         perturbation *= 1e-2
         return ef.restore_gradient_by_vector(model_state, self.m + perturbation)
+
+# 噪声攻击具体实现
+class NoiseAttack(Attack):
+
+    def __init__(self, mean: float = 0.0, stddev: float = 1.0):
+        super().__init__()
+        self.mean = mean
+        self.stddev = stddev
+
+    def gen_gradient(self, context: dict):
+        c_d, model, optim, lr, loss_fun, model_state, device = (context['c_d'], context['model'], context['optim'],
+                                                                context['lr'], context['loss_func'],
+                                                                context['model_state'],
+                                                                context['device'])
+
+        # 生成 honest gradient（诚实的梯度）
+        client_update, sum_loss, true_predict, size = train_client(c_d, model, optim, lr, loss_fun,
+                                                                   model_state, device)
+
+        # 为每个梯度参数生成噪声
+        perturbed_gradient = {}
+        for param_name, param_value in client_update.items():
+            # 为每个参数生成与其形状一致的噪声
+            noise = torch.normal(self.mean, self.stddev, size=param_value.shape, device=device)
+
+            # 将噪声加到该参数的梯度上
+            perturbed_gradient[param_name] = param_value + noise
+
+        return perturbed_gradient
+
+# LIE 攻击具体实现
+class LieAttack(Attack):
+      pass

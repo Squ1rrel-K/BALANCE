@@ -47,11 +47,12 @@ def auto_match(setting: Setting, args: dict, context: dict):
             key = keys[i]
             if isinstance(root, dict) and key in root.keys():
                 if i == len(keys) - 1:
-                    try:
+                    # try:
                         setting.interpret(args[key], context)
-                    except:
-                        print("Failed to load", "'"+key+"'.", "Please check the configuration file and try again.")
-                        exit(-1)
+                    # except:
+                    #     print("Failed to load", "'"+key+"'.", "Please check the configuration file and try again.")
+                    #     exit(-1)
+                    # pass
                 else:
                     root = root[key]
 
