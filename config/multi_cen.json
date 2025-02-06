@@ -1,0 +1,28 @@
+{
+    "framework": "FedAvg",
+    "cen_settings": {
+        "alpha": [8, 16, 32],
+        "beta": [2, 4, 8],
+        "zeta": 1024,
+        "local_epochs": 80
+    },
+    "fl_settings": {
+        "model": "Model_CIFAR10",
+        "task": "Classification_CEN",
+        "data_root": "../data",
+        "dataset": "CIFAR10",
+        "data_heterogeneity_settings": {
+            "alpha": 0.1
+        },
+        "loss_func": "CrossEntropyLoss",
+        "optim": "Adam",
+        "device": "cuda",
+        "client_size": 10,
+        "epochs": 50,
+        "lr": 1e-3
+    },
+    "other_settings": {
+        "report_dir": "../logs",
+        "report_name": "test"
+    }
+}

@@ -1,0 +1,27 @@
+{
+    "framework": "FedAvg",
+    "byzantine_settings": {
+        "byzantine_attack": "LabelFlipping",
+        "byzantine_defend": "Krum",
+        "adv_rate": [0.1, 0.2, 0.3]
+    },
+    "fl_settings": {
+        "model": "Model_CIFAR10",
+        "task": "Classification",
+        "data_root": "../data",
+        "dataset": "CIFAR10",
+        "data_heterogeneity_settings": {
+            "alpha": [0.1, 0.2, 0.3]
+        },
+        "loss_func": "CrossEntropyLoss",
+        "optim": "Adam",
+        "device": "cuda",
+        "client_size": 10,
+        "epochs": 50,
+        "lr": 1e-3
+    },
+    "other_settings": {
+        "report_dir": "../logs",
+        "report_name": "test"
+    }
+}
