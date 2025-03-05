@@ -68,8 +68,7 @@ class LabelFlipping(Attack):
         client_update = ef.sub(model_state, local_model.state_dict())
         return client_update, sum_loss, true_predict, size
 
-
-
+# Sine 攻击
 class Sine(Attack):
 
     def __init__(self):
@@ -234,6 +233,223 @@ class NoiseAttack(Attack):
 
         return perturbed_gradient
 
+
+# Min-Max 攻击
+class MinMaxAttack(Attack):
+
+    def __init__(self, gamma: float = 1.0, p_grad: str = "std"):
+        """
+        初始化 Min-Max 攻击的 gamma 和扰动类型
+        gamma: 缩放系数
+        p_grad: 默认为标准差 std，表示选择如何生成扰动
+        """
+        super().__init__()
+        self.gamma = gamma
+        self.p_grad = p_grad  # 可以是 'std' 或者其他选项，如 'mean'
+
+    def gen_gradient(self, context: dict):
+        """
+        生成 Min-Max 攻击的恶意梯度
+        """
+
+        c_d, model, optim, lr, loss_fun, model_state, device = (context['c_d'], context['model'], context['optim'],
+                                                                context['lr'], context['loss_func'],
+                                                                context['model_state'], context['device'])
+
+        # 生成 honest gradient（诚实的梯度）
+        client_update, sum_loss, true_predict, size = train_client(c_d, model, optim, lr, loss_fun,
+                                                                   model_state, device)
+
+        # 获取所有客户端的梯度
+        benign_gradients = client_update  # 假设这个梯度是来自多个正常客户端
+
+        # 计算标准差作为扰动大小
+        gradient_list = [value.flatten() for value in benign_gradients.values()]
+        all_gradients = torch.cat(gradient_list, dim=0)
+
+        # 根据指定的扰动类型计算扰动
+        if self.p_grad == "std":
+            # 使用标准差的倒数作为扰动
+            perturbation = torch.std(all_gradients) ** -1
+        else:
+            # 其他处理方式（例如mean）
+            perturbation = torch.mean(all_gradients) ** -1
+
+        # 生成恶意梯度，依照 Min-Max 攻击策略生成扰动
+        malicious_gradient = {}
+        for param_name, param_value in benign_gradients.items():
+            # 生成扰动后的梯度
+            gradient_shape = param_value.shape
+            perturbation_vector = perturbation * torch.normal(self.gamma, 1, size=gradient_shape, device=device)
+
+            # 根据Min-Max攻击策略生成扰动
+            malicious_gradient[param_name] = param_value + perturbation_vector
+
+        return malicious_gradient
+
+
+# Min-Sum 攻击
+class MinSumAttack(Attack):
+
+    def __init__(self, gamma: float = 1.0, p_grad: str = "std"):
+        """
+        初始化 Min-Sum 攻击的 gamma 和扰动类型
+        gamma: 缩放系数
+        p_grad: 默认为标准差 std，表示选择如何生成扰动
+        """
+        super().__init__()
+        self.gamma = gamma
+        self.p_grad = p_grad  # 可以是 'std' 或者其他选项，如 'mean'
+
+    def gen_gradient(self, context: dict):
+        """
+        生成 Min-Sum 攻击的恶意梯度
+        """
+
+        c_d, model, optim, lr, loss_fun, model_state, device = (context['c_d'], context['model'], context['optim'],
+                                                                context['lr'], context['loss_func'],
+                                                                context['model_state'], context['device'])
+
+        # 生成 honest gradient（诚实的梯度）
+        client_update, sum_loss, true_predict, size = train_client(c_d, model, optim, lr, loss_fun,
+                                                                   model_state, device)
+
+        # 获取所有客户端的梯度
+        benign_gradients = client_update  # 假设这个梯度是来自多个正常客户端
+
+        # 计算标准差作为扰动大小
+        gradient_list = [value.flatten() for value in benign_gradients.values()]
+        all_gradients = torch.cat(gradient_list, dim=0)
+
+        # 根据指定的扰动类型计算扰动
+        if self.p_grad == "std":
+            # 使用标准差的倒数作为扰动
+            perturbation = torch.std(all_gradients) ** -1
+        else:
+            # 其他处理方式（例如mean）
+            perturbation = torch.mean(all_gradients) ** -1
+
+        # 生成恶意梯度，依照 Min-Sum 攻击策略生成扰动
+        malicious_gradient = {}
+        for param_name, param_value in benign_gradients.items():
+            # 生成扰动后的梯度
+            gradient_shape = param_value.shape
+            perturbation_vector = perturbation * torch.normal(self.gamma, 1, size=gradient_shape, device=device)
+
+            # 根据Min-Sum攻击策略生成扰动
+            malicious_gradient[param_name] = param_value + perturbation_vector
+
+        return malicious_gradient
+
+
+
 # LIE 攻击具体实现
-class LieAttack(Attack):
-      pass
+class LIEAttack(Attack):
+
+    def gen_gradient(self, context: dict):
+        """
+        生成 LIE 攻击的恶意梯度。
+
+        参数:
+            context (dict): 包含客户端数据、模型、优化器等信息的字典。
+
+        返回:
+            dict: 恶意梯度，与 model.state_dict() 结构一致。
+        """
+        # 从 context 中提取所需信息
+        c_d, model, optim, lr, loss_fun, model_state, device = (
+            context['c_d'],  # 客户端数据
+            context['model'],  # 模型类
+            context['optim'],  # 优化器类
+            context['lr'],  # 学习率
+            context['loss_func'],  # 损失函数
+            context['model_state'],  # 全局模型状态
+            context['device']  # 设备（CPU/GPU）
+        )
+
+        # 模拟诚实客户端训练，获取本地梯度更新
+        client_update, sum_loss, true_predict, size = self.train_client(
+            c_d, model, optim, lr, loss_fun, model_state, device
+        )
+
+        # 估计梯度的均值和标准差
+        mean_grad, std_grad = self.estimate_grad_stats(client_update)
+
+        # 获取恶意因子 z，若未提供则使用默认值 1.0  可以自己设置调整 参考论文设置0.3
+        z = context.get('attack_factor', 1.0)
+
+        # 生成恶意梯度
+        malicious_update = self.apply_lie_attack(mean_grad, std_grad, z,client_update,device)
+
+        return malicious_update
+
+    def train_client(self, client_data, model, optim, lr, loss_fun, model_state, device):
+        """
+        模拟诚实客户端的训练过程，计算梯度更新。
+        """
+        # 初始化本地模型并加载全局模型状态
+        local_model = model().to(device)
+        local_model.load_state_dict(model_state)
+        optimizer = optim(local_model.parameters(), lr=lr)
+
+        sum_loss = 0
+        true_predict = 0
+        size = 0
+
+        # 遍历客户端数据进行训练
+        for data in client_data:
+            inputs, labels = data
+            inputs, labels = Variable(inputs).to(device), Variable(labels).to(device)
+
+            optimizer.zero_grad()
+            outputs = local_model(inputs)
+            loss = loss_fun(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            # 计算损失和准确率
+            _, predicted = torch.max(outputs.data, 1)
+            sum_loss += loss.data
+            true_predict += torch.sum(predicted == labels.data)
+            size += len(labels)
+
+        # 计算梯度更新（全局模型状态 - 本地模型状态）
+        client_update = self.sub(model_state, local_model.state_dict())
+        return client_update, sum_loss, true_predict, size
+
+    def estimate_grad_stats(self, client_update):
+        """
+        估计梯度更新的均值和标准差。
+
+        参数:
+            client_update (dict): 本地梯度更新
+
+        返回:
+            tuple: (均值字典, 标准差字典)
+        """
+        mean_grad = {}
+        std_grad = {}
+        for key in client_update.keys():
+            grad_tensor = client_update[key]
+            mean_grad[key] = torch.mean(grad_tensor)
+            std_grad[key] = torch.std(grad_tensor) if torch.std(grad_tensor) != 0 else torch.tensor(1e-5)
+        return mean_grad, std_grad
+
+    def apply_lie_attack(self, mean_grad, std_grad, z, client_update,device):
+        malicious_update = {}
+        for key in client_update.keys():
+            shape = client_update[key].shape  # 获取原始形状
+            # 确保 client_update[key] 在 GPU 上
+            client_update[key] = client_update[key].to(device)
+            # 计算 value，确保 mean_grad[key] 和 std_grad[key] 在同一设备上
+            value = mean_grad[key] - z * std_grad[key]
+            # 创建与 value 相同设备的 ones 张量
+            ones_tensor = torch.ones(shape, device=device)
+            malicious_update[key] = value * ones_tensor
+        return malicious_update
+
+    def sub(self, state_dict1, state_dict2):
+        """
+        计算两个状态字典的差。
+        """
+        return {k: state_dict1[k] - state_dict2[k] for k in state_dict1.keys()}
