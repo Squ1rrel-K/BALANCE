@@ -17,6 +17,26 @@ from util.log import Report
 def train(model, client_data, test_dataset, epochs, lr,
           client_train: ClientTrain, framework: Framework, task_type: TaskType, optim,
           loss_func=torch.nn.CrossEntropyLoss(), device=torch.device('cuda'), report=Report()):
+    """
+    Standard federated learning training function without Byzantine attacks.
+    
+    Args:
+        model: The global model to be trained
+        client_data: List of client datasets
+        test_dataset: Dataset for evaluation
+        epochs: Number of training rounds
+        lr: Learning rate
+        client_train: Client training implementation
+        framework: Federated learning framework implementation
+        task_type: Task type implementation
+        optim: Optimizer class
+        loss_func: Loss function
+        device: Device for computation (cuda/cpu)
+        report: Report object for logging
+        
+    Returns:
+        The trained global model
+    """
     if task_type is None:
         task_type = Classification()
     if client_train is None:
@@ -48,6 +68,29 @@ def train(model, client_data, test_dataset, epochs, lr,
 def train_with_attack(model, client_data, test_dataset, epochs, lr, strategic: Strategic, attack: Attack, adv_rate,
                       client_train: ClientTrain, framework: Framework, task_type: TaskType, optim,
                       loss_func=torch.nn.CrossEntropyLoss(), device=torch.device('cuda'), report=Report()):
+    """
+    Federated learning training function with Byzantine attacks and defenses.
+    
+    Args:
+        model: The global model to be trained
+        client_data: List of client datasets
+        test_dataset: Dataset for evaluation
+        epochs: Number of training rounds
+        lr: Learning rate
+        strategic: Defense strategy implementation
+        attack: Attack implementation
+        adv_rate: Proportion of adversarial clients
+        client_train: Client training implementation
+        framework: Federated learning framework implementation
+        task_type: Task type implementation
+        optim: Optimizer class
+        loss_func: Loss function
+        device: Device for computation (cuda/cpu)
+        report: Report object for logging
+        
+    Returns:
+        The trained global model
+    """
     if task_type is None:
         task_type = Classification()
     if client_train is None:
@@ -89,6 +132,15 @@ def train_with_attack(model, client_data, test_dataset, epochs, lr, strategic: S
 
 
 def start(args: dict):
+    """
+    Entry point for starting experiments based on configuration.
+    
+    Args:
+        args: Dictionary containing experiment configuration
+        
+    Returns:
+        None
+    """
     settings = get_classes(setting, meta_define.setting.Setting)
     settings.sort(key=lambda o: o.order)
     parse_args = copy.deepcopy(args)
